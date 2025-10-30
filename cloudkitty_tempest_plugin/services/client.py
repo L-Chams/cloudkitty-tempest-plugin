@@ -471,6 +471,8 @@ class Manager(clients.ServiceClients):
             'v1': RatingClientV1(self.auth_provider, **self.rating_params),
             'v2': RatingClientV2(self.auth_provider, **self.rating_params),
         }
+        self.vol_client = volumes_client.VolumesClient(
+            self.auth_provider, 'block-storage', CONF.identity.region)
 
     def get_rating_client(self, api_version='v2'):
         if api_version not in self.rating_clients:
