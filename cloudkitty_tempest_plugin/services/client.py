@@ -22,6 +22,7 @@ from tempest import clients as tempest_clients
 from tempest import config
 from tempest.lib.common import rest_client
 from tempest.lib.services import clients
+from tempest.lib.services.volume.v3 import volumes_client
 
 CONF = config.CONF
 
