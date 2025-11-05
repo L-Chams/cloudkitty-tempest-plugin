@@ -40,32 +40,27 @@ class DataFrameCollectionScenarioTest(base.BaseRatingTest):
     openstack volume create --size 2 vol1 # create a volume resource
 """
     api_version = 'v1'
-    credentials = ['admin'] #idk if I need this
-
+    credentials = ['admin']
 
     def test_collect_dataframe(self):
         """Test DataFrame collection for volume resource."""
-
         self._setup_volume_resource()
         self._get_dataframe()
         self._check_dataframe()
+        self.tearDown()
 
 
     def _setup_volume_resource(self):
 
-        with open('/home/ubuntu/out.txt', 'a') as f:
-            print("client_manager is", self.client_manager, file=f)
         # create a volume resource
-        self.volume = self.client_manager.vol_client.create_volume(size=2, name='cloudkitty_test_vol')
-
+        self.volume = self.os_admin.vol_client.create_volume(size=2, name='cloudkitty_test_vol')
 
         # create a hashmap service for storage
-        storage_service = self.rating_client.create_hashmap_field(self, storage)
-        storage_service_id = storage_service['id']
+        storage_service = self.rating_client.create_hashmap_service(name='test_storage')
+        self.storage_service_id = storage_service['service_id']
 
-        mapping = self.rating_client.create_hashmap_mapping(self, cost=2, field_id=None, group_id=None,
-                                    map_type='flat', mapping_id=None, service_id=storage_service_id,
-                                    tenant_id=None, value=None)
+        self.mapping = self.rating_client.create_hashmap_mapping(cost=2, map_type='flat',
+                                                            service_id=self.storage_service_id)
 
         # wait for a specified amount of time
         time.sleep(120) #????
@@ -80,7 +75,7 @@ class DataFrameCollectionScenarioTest(base.BaseRatingTest):
 
     def _check_dataframe(self):
 
-        dataframes = self.get_dataframe()
+        dataframes = self._get_dataframe()
 
         expected_dataframe = {'rating': '0.8',
                             'service': 'storage',
@@ -106,4 +101,31 @@ class DataFrameCollectionScenarioTest(base.BaseRatingTest):
         #check rating has a non-zero value
         self.assertGreater(float(dataframes[0]['rating']), 0.0)
 
-        #clean everything up
+    #clean everything up
+    def tearDown(self):
+        # self.os_admin.vol_client.delete_volume(self.volume['id'])
+        # self.rating_client.delete_hashmap_service(storage_service_id)
+        # self.rating_client.delete_hashmap_mapping(mapping['id'])
+        """Clean up resources in reverse order of creation."""
+        # Delete mapping first
+        if self.mapping_id:
+            try:
+                self.rating_client.delete_hashmap_mapping(self.mapping_id)
+            except Exception as e:
+                LOG.error(f"Failed to delete mapping {self.mapping_id}: {e}")
+
+        # Delete service
+        if self.storage_service_id:
+            try:
+                self.rating_client.delete_hashmap_service(self.storage_service_id)
+            except Exception as e:
+                LOG.error(f"Failed to delete service {self.storage_service_id}: {e}")
+
+        # Delete volume
+        if self.volume:
+            try:
+                self.os_admin.vol_client.delete_volume(self.volume['id'])
+            except Exception as e:
+                LOG.error(f"Failed to delete volume {self.volume['id']}: {e}")
+
+        super(DataFrameCollectionScenarioTest, self).tearDown()
