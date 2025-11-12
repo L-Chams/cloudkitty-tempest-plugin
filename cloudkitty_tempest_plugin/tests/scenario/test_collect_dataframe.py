@@ -47,85 +47,54 @@ class DataFrameCollectionScenarioTest(base.BaseRatingTest):
         self._setup_volume_resource()
         self._get_dataframe()
         self._check_dataframe()
-        self.tearDown()
 
 
     def _setup_volume_resource(self):
 
         # create a volume resource
         self.volume = self.os_admin.vol_client.create_volume(size=2, name='cloudkitty_test_vol')
-
+        volume_id = self.volume['volume']['id']
+        self.addCleanup(self.os_admin.vol_client.delete_volume, volume_id)
         # create a hashmap service for storage
-        storage_service = self.rating_client.create_hashmap_service(name='test_storage')
-        self.storage_service_id = storage_service['service_id']
+        self.storage_service = self.rating_client.create_hashmap_service(name='volume.size')
+        self.storage_service_id = self.storage_service['service_id']
+        self.addCleanup(self.rating_client.delete_hashmap_service, self.storage_service_id)
 
-        self.mapping = self.rating_client.create_hashmap_mapping(cost=2, map_type='flat',
+        self.mapping = self.rating_client.create_hashmap_mapping(cost=2,
                                                             service_id=self.storage_service_id)
+        mapping_id = self.mapping['mapping_id']
+        self.addCleanup(self.rating_client.delete_hashmap_mapping, mapping_id)
+
+
 
         # wait for a specified amount of time
-        time.sleep(120) #????
+        time.sleep(180) #????
 
     # collect the dataframe and verify its correctness
     def _get_dataframe(self):
 
-        dataframes = self.client_manager.get_storage_dataframes()
-        return dataframes
+       self.dataframes = self.rating_client.get_storage_dataframes()
 
 
 
     def _check_dataframe(self):
+         # Access the actual dataframes list
+        if isinstance(self.dataframes, dict) and 'dataframes' in self.dataframes:
+            dataframes_list = self.dataframes['dataframes']
+        else:
+            dataframes_list = self.dataframes if isinstance(self.dataframes, list) else [self.dataframes]
 
-        dataframes = self._get_dataframe()
+        # Add validation before accessing
+        if not dataframes_list:
+            LOG.error(f"No dataframes collected. Response: {self.dataframes}")
+            self.fail(f"No dataframes were collected. Received: {self.dataframes}")
 
-        expected_dataframe = {'rating': '0.8',
-                            'service': 'storage',
-                            'desc': {
-                                'volume_type': 'lvmdriver-1',
-                                'id': self.volume['id'],
-                                'project_id': self.volume['project_id'],
-                                'user_id': self.volume['user_id'],
-                                'week_of_the_year':  today.week, #dont really care about checking datetime stamps  - can I ignore?
-                                'day_of_the_year': today.day,
-                                'month': today.month,
-                                'year': today.year
-                            },
-                            'volume': '0.4',
-                            'rate_value': '2.0000'}
+        first_df = dataframes_list[0]
 
-        #check if service, id, project_id and user_id match
-        self.assertEqual(dataframes[0]['service'], expected_dataframe['service'])
-        self.assertEqual(dataframes[0]['desc']['id'], expected_dataframe['desc']['id'])
-        self.assertEqual(dataframes[0]['desc']['project_id'], expected_dataframe['desc']['project_id'])
-        self.assertEqual(dataframes[0]['desc']['user_id'], expected_dataframe['desc']['user_id'])
+        self.assertEqual(first_df['service'], 'volume.size')
+        self.assertEqual(first_df['desc']['id'], self.volume['volume']['id'])
+        self.assertEqual(first_df['desc']['project_id'], self.volume['volume']['project_id'])
+        self.assertEqual(first_df['desc']['user_id'], self.volume['volume']['user_id'])
 
         #check rating has a non-zero value
-        self.assertGreater(float(dataframes[0]['rating']), 0.0)
-
-    #clean everything up
-    def tearDown(self):
-        # self.os_admin.vol_client.delete_volume(self.volume['id'])
-        # self.rating_client.delete_hashmap_service(storage_service_id)
-        # self.rating_client.delete_hashmap_mapping(mapping['id'])
-        """Clean up resources in reverse order of creation."""
-        # Delete mapping first
-        if self.mapping_id:
-            try:
-                self.rating_client.delete_hashmap_mapping(self.mapping_id)
-            except Exception as e:
-                LOG.error(f"Failed to delete mapping {self.mapping_id}: {e}")
-
-        # Delete service
-        if self.storage_service_id:
-            try:
-                self.rating_client.delete_hashmap_service(self.storage_service_id)
-            except Exception as e:
-                LOG.error(f"Failed to delete service {self.storage_service_id}: {e}")
-
-        # Delete volume
-        if self.volume:
-            try:
-                self.os_admin.vol_client.delete_volume(self.volume['id'])
-            except Exception as e:
-                LOG.error(f"Failed to delete volume {self.volume['id']}: {e}")
-
-        super(DataFrameCollectionScenarioTest, self).tearDown()
+        self.assertGreater(float(first_df['rating']), 0.0)
