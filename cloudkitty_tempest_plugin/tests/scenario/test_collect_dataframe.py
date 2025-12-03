@@ -89,9 +89,22 @@ class DataFrameCollectionScenarioTest(base.BaseRatingTest):
             LOG.error(f"No dataframes collected. Response: {self.dataframes}")
             self.fail(f"No dataframes were collected. Received: {self.dataframes}")
 
-        first_df = dataframes_list[0]
 
-        self.assertEqual(first_df['service'], 'volume.size')
+        print("Collected DataFrames:", dataframes_list)
+
+        first_df = dataframes_list[0]['resources'][0]
+
+        with open('/home/ubuntu/out.txt', 'a') as f:
+            print("first dataframe is: ", file=f)
+            print(first_df, file=f)
+            print("self volume id is: ", file=f)
+            print(self.volume['volume']['id'], file=f)
+            print ("self volume project id is: ", file=f)
+            print(self.volume['volume']['project_id'], file=f)
+            print("self volume user id is: ", file=f)
+            print(self.volume['volume']['user_id'], file=f)
+
+        self.assertEqual(first_df['service'], 'volume.size') #works
         self.assertEqual(first_df['desc']['id'], self.volume['volume']['id'])
         self.assertEqual(first_df['desc']['project_id'], self.volume['volume']['project_id'])
         self.assertEqual(first_df['desc']['user_id'], self.volume['volume']['user_id'])
