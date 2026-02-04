@@ -400,6 +400,56 @@ class RatingClientV2(RatingClientV1):
 
     api_version = 'v2'
 
+    def get_scope_state(self, collector=None, fetcher=None, limit=None,
+                        offset=None, scope_id=None, scope_key=None):
+        uri = "/scope"
+        args = locals()
+        args.pop('self')
+        args.pop('uri')
+        request_body = dict((k, v)
+                            for k, v in args.items() if v is not None)
+        return self._do_request('GET', uri,
+                                body=self.serialize(request_body),
+                                expected_code=200)
+
+    def reset_scope_state(self, last_processed_timestamp,
+                          collector=None, fetcher=None, scope_id=None,
+                          scope_key=None, all_scopes=None):
+        uri = "/scope"
+        args = locals()
+        args.pop('self')
+        args.pop('uri')
+        request_body = dict((k, v)
+                            for k, v in args.items() if v is not None)
+        return self._do_request('PUT', uri,
+                                body=self.serialize(request_body),
+                                expected_code=202)
+
+    def update_scope(self, collector=None, fetcher=None, limit=None,
+                     offset=None, scope_id=None, scope_key=None,
+                     active=None):
+        uri = "/scope"
+        args = locals()
+        args.pop('self')
+        args.pop('uri')
+        request_body = dict((k, v)
+                            for k, v in args.items() if v is not None)
+        return self._do_request('PATCH', uri,
+                                body=self.serialize(request_body),
+                                expected_code=200)
+
+    def create_scope(self, collector=None, fetcher=None, scope_id=None,
+                     scope_key=None, active=None):
+        uri = "/scope"
+        args = locals()
+        args.pop('self')
+        args.pop('uri')
+        request_body = dict((k, v)
+                            for k, v in args.items() if v is not None)
+        return self._do_request('POST', uri,
+                                body=self.serialize(request_body),
+                                expected_code=200)
+
 
 class CustomIdentityClient(object):
     """Custom Keystone client
