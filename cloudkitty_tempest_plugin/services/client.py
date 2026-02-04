@@ -22,6 +22,7 @@ from tempest import clients as tempest_clients
 from tempest import config
 from tempest.lib.common import rest_client
 from tempest.lib.services import clients
+from tempest.lib.services.volume.v3 import volumes_client
 
 CONF = config.CONF
 
@@ -400,6 +401,56 @@ class RatingClientV2(RatingClientV1):
 
     api_version = 'v2'
 
+    def get_scope_state(self, collector=None, fetcher=None, limit=None,
+                        offset=None, scope_id=None, scope_key=None):
+        uri = "/scope"
+        args = locals()
+        args.pop('self')
+        args.pop('uri')
+        request_body = dict((k, v)
+                            for k, v in args.items() if v is not None)
+        return self._do_request('GET', uri,
+                                body=self.serialize(request_body),
+                                expected_code=200)
+
+    def reset_scope_state(self, last_processed_timestamp,
+                          collector=None, fetcher=None, scope_id=None,
+                          scope_key=None, all_scopes=False):
+        uri = "/scope"
+        args = locals()
+        args.pop('self')
+        args.pop('uri')
+        request_body = dict((k, v)
+                            for k, v in args.items() if v is not None)
+        return self._do_request('PUT', uri,
+                                body=self.serialize(request_body),
+                                expected_code=202)
+
+    def update_scope(self, collector=None, fetcher=None, limit=None,
+                     offset=None, scope_id=None, scope_key=None,
+                     active=True):
+        uri = "/scope"
+        args = locals()
+        args.pop('self')
+        args.pop('uri')
+        request_body = dict((k, v)
+                            for k, v in args.items() if v is not None)
+        return self._do_request('PATCH', uri,
+                                body=self.serialize(request_body),
+                                expected_code=200)
+
+    def create_scope(self, collector=None, fetcher=None, scope_id=None,
+                     scope_key=None, active=True):
+        uri = "/scope"
+        args = locals()
+        args.pop('self')
+        args.pop('uri')
+        request_body = dict((k, v)
+                            for k, v in args.items() if v is not None)
+        return self._do_request('POST', uri,
+                                body=self.serialize(request_body),
+                                expected_code=200)
+
 
 class CustomIdentityClient(object):
     """Custom Keystone client
@@ -471,6 +522,8 @@ class Manager(clients.ServiceClients):
             'v1': RatingClientV1(self.auth_provider, **self.rating_params),
             'v2': RatingClientV2(self.auth_provider, **self.rating_params),
         }
+        self.vol_client = volumes_client.VolumesClient(
+            self.auth_provider, 'block-storage', CONF.identity.region)
 
     def get_rating_client(self, api_version='v2'):
         if api_version not in self.rating_clients:
