@@ -40,6 +40,13 @@ class DataFrameCollectionScenarioTest(base.BaseRatingTest):
     api_version = 'v1'
     credentials = ['admin']
 
+    @classmethod
+    def setup_clients(cls):
+        super(DataFrameCollectionScenarioTest, cls).setup_clients()
+        # Add v2 client for scope state operations
+        os_var = 'os_{}'.format(cls.credentials[0])
+        cls.rating_client_v2 = getattr(cls, os_var).rating_clients['v2']
+
     def test_collect_dataframe(self):
         """Test DataFrame collection for volume resource."""
         self._setup_volume_resource()
@@ -58,20 +65,23 @@ class DataFrameCollectionScenarioTest(base.BaseRatingTest):
         self.storage_service = self.rating_client.create_hashmap_service(name='storage')
         self.storage_service_id = self.storage_service['service_id']
         self.addCleanup(self.rating_client.delete_hashmap_service, self.storage_service_id)
-        # create a mapping
-        # set to today's current date and time
-        #start_date = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
+
+
 
 
         # enable hashmap module
         self.rating_client.update_rating_module(module_name='hashmap', enabled=True,  priority=100)
+        # create a mapping
         self.mapping = self.rating_client.create_hashmap_mapping(cost=2,
                                                             service_id=self.storage_service_id)
         self.mapping_id = self.mapping['mapping_id']
         self.addCleanup(self.rating_client.delete_hashmap_mapping, self.mapping_id)
 
+        updated_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
+        self.rating_client_v2.reset_scope_state(updated_timestamp, all_scopes=True)
+
         # wait for a specified amount of time
-        time.sleep(600) #testing 10 minutes
+        time.sleep(900) #testing 15 minutes
 
     # collect the dataframe and verify its correctness
     def _get_dataframe(self):
@@ -92,21 +102,7 @@ class DataFrameCollectionScenarioTest(base.BaseRatingTest):
             LOG.error(f"No dataframes collected. Response: {self.dataframes}")
             self.fail(f"No dataframes were collected. Received: {self.dataframes}")
 
-
-        # loop through dataframes and look for the one that matches self.volume id
-
-        for df in dataframes_list:
-            if df['desc']['id'] == self.volume['volume']['id']:
-                test_df = df
-                break
-        else:
-            LOG.error(f"No matching dataframe found for volume ID {self.volume['volume']['id']}. Dataframes: {dataframes_list}")
-            self.fail(f"No matching dataframe found for volume ID {self.volume['volume']['id']}.")
-
-
-        #last_df = dataframes_list[-1]['resources'][0]
-
-        with open('/home/ubuntu/dataframe_info_7.txt', 'w') as f:
+        with open('/home/ubuntu/dataframe_info_8.txt', 'w') as f:
             #first print desired outputs
             print("self.volume id:", self.volume['volume']['id'], file=f)
             print("self.volume project_id:", self.project_id, file=f)
@@ -116,6 +112,21 @@ class DataFrameCollectionScenarioTest(base.BaseRatingTest):
                 print("DataFrame:", df, file=f)
                 for resource in df.get('resources', []):
                     print("Resource:", resource, file=f)
+
+
+        # loop through dataframes and look for the one that matches self.volume id
+
+        for df in dataframes_list:
+            curr_df = df['resources'][0]
+            if curr_df['desc']['id'] == self.volume['volume']['id']:
+                test_df = curr_df
+                break
+        else:
+            LOG.error(f"No matching dataframe found for volume ID {self.volume['volume']['id']}. Dataframes: {dataframes_list}")
+            self.fail(f"No matching dataframe found for volume ID {self.volume['volume']['id']}.")
+
+
+        #last_df = dataframes_list[-1]['resources'][0]
 
 
 
